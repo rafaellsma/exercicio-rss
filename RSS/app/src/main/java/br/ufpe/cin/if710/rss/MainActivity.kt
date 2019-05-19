@@ -2,31 +2,52 @@ package br.ufpe.cin.if710.rss
 
 import android.app.Activity
 import android.os.Bundle
-import android.widget.TextView
+import android.support.v7.widget.LinearLayoutManager
+import android.support.v7.widget.RecyclerView
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.uiThread
 import java.io.ByteArrayOutputStream
-import java.io.IOException
 import java.io.InputStream
 import java.net.URL
+import android.content.Intent
+import android.net.Uri
 
-const val RSS_FEED = "http://leopoldomt.com/if1001/g1brasil.xml";
+
+const val RSS_FEED = "http://pox.globo.com/rss/g1/tecnologia/"
 
 class MainActivity : Activity() {
-    var conteudoRSS: TextView? = null
+    private lateinit var conteudoRSS: RecyclerView
+    private lateinit var conteudoRSSAdapter: ConteudoRSSAdapter
+    private lateinit var conteudoRSSManager: RecyclerView.LayoutManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        conteudoRSS = findViewById(R.id.conteudoRSS)
+        conteudoRSSAdapter = ConteudoRSSAdapter(listOf()) { item -> openWebPage(item) }
+        conteudoRSSManager = LinearLayoutManager(this)
+        conteudoRSS = findViewById<RecyclerView>(R.id.conteudoRSS).apply {
+            setHasFixedSize(true)
+            layoutManager = conteudoRSSManager
+            adapter = conteudoRSSAdapter
+        }
     }
 
     override fun onStart() {
         super.onStart()
-        try {
-            conteudoRSS?.setText(getRssFeed(RSS_FEED))
-        } catch (e: IOException) {
-
-            e.printStackTrace()
+        doAsync {
+            val listRSS = ParserRSS.parse(getRssFeed(RSS_FEED))
+            uiThread {
+                conteudoRSSAdapter.setList(listRSS)
+                conteudoRSSAdapter.notifyDataSetChanged()
+            }
         }
+    }
+
+    private fun openWebPage(itemRSS: ItemRSS) {
+        print(itemRSS)
+
+        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(itemRSS.link))
+        startActivity(browserIntent)
     }
 
     private fun getRssFeed(feed: String): String {
